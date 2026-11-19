@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -31,7 +32,7 @@ fun PrivacyNoticeDialog(onAcknowledge: () -> Unit) {
         onDismissRequest = onAcknowledge,
         icon = {
             Icon(
-                imageVector = Icons.Filled.Lock,
+                imageVector = Icons.Filled.Security,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
             )
@@ -41,19 +42,19 @@ fun PrivacyNoticeDialog(onAcknowledge: () -> Unit) {
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
                 PrivacyLine(
                     icon = Icons.Filled.Lock,
-                    text = "原片始终以只读方式访问，不会被覆盖。",
+                    text = "原片始终以只读方式访问，不会被覆盖",
                 )
                 PrivacyLine(
                     icon = Icons.Filled.Save,
-                    text = "结果先写入应用私有目录，成功后才发布到相册或你指定的位置。",
+                    text = "结果先写入应用私有目录，成功后才发布到相册或你指定的位置",
                 )
                 PrivacyLine(
                     icon = Icons.Filled.WifiOff,
-                    text = "数据只在本地处理。",
+                    text = "数据只在本地处理",
                 )
                 PrivacyLine(
                     icon = Icons.Filled.Folder,
-                    text = "重启后仍可访问已授权的文件夹；授权失效时需要重新选择。",
+                    text = "重启后仍可访问已授权的文件夹；授权失效时需要重新选择",
                 )
             }
         },

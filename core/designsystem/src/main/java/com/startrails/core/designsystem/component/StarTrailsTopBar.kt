@@ -11,6 +11,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -21,6 +22,9 @@ import androidx.compose.ui.text.style.TextOverflow
  *  - 标题使用 titleLarge（22sp SemiBold），可选副标题提供上下文；
  *  - 容器透明，与页面表面无缝衔接，滚动时才显示容器色；
  *  - 返回按钮固定使用 AutoMirrored 图标，支持 RTL。
+ *
+ * @param scrollBehavior 传入 `TopAppBarDefaults.pinnedScrollBehavior()` 并挂载到 Scaffold 的
+ *   `nestedScroll` 后，内容滚动才会把容器色从透明渐变到 scrolledContainerColor。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,6 +33,7 @@ fun StarTrailsTopBar(
     modifier: Modifier = Modifier,
     subtitle: String? = null,
     onBack: (() -> Unit)? = null,
+    scrollBehavior: TopAppBarScrollBehavior? = null,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
     TopAppBar(
@@ -70,5 +75,6 @@ fun StarTrailsTopBar(
             navigationIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
             actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
         ),
+        scrollBehavior = scrollBehavior,
     )
 }

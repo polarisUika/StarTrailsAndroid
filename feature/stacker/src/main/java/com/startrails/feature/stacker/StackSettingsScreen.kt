@@ -26,6 +26,7 @@ import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -33,6 +34,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import com.startrails.core.designsystem.component.BottomActionBar
 import com.startrails.core.designsystem.component.InfoRow
 import com.startrails.core.designsystem.component.SectionCard
@@ -64,6 +66,7 @@ internal fun StackSettingsScreen(
     var formatMenuExpanded by remember { mutableStateOf(false) }
     val folderSource = state.job?.sourceLabel == "文件夹来源"
     val canStart = state.frames.size >= 2 && state.frames.none { it.issueCode != null || it.width == 0 }
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
     Scaffold(
         topBar = {
@@ -71,6 +74,7 @@ internal fun StackSettingsScreen(
                 title = "叠加参数",
                 subtitle = "第 2 步 · 共 3 步",
                 onBack = onBack,
+                scrollBehavior = scrollBehavior,
             )
         },
         bottomBar = {
@@ -87,6 +91,7 @@ internal fun StackSettingsScreen(
                 SupportText("合成期间可在其他页面继续使用，任务不会中断。")
             }
         },
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         contentWindowInsets = ScreenContentInsets,
         containerColor = MaterialTheme.colorScheme.surface,
     ) { padding ->

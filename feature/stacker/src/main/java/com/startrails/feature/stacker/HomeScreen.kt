@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -43,6 +44,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -56,6 +58,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.startrails.core.designsystem.component.SectionCard
@@ -66,6 +69,7 @@ import com.startrails.core.designsystem.theme.Spacing
 import com.startrails.core.model.StackJob
 import com.startrails.core.model.displayName
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun HomeScreen(
     state: StackerUiState,
@@ -75,14 +79,17 @@ internal fun HomeScreen(
     onOpenJob: (StackJob) -> Unit,
 ) {
     val activeJob = state.job?.takeIf { it.status.isActive }
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
     Scaffold(
         topBar = {
             StarTrailsTopBar(
                 title = "StarTrails",
                 subtitle = "星轨合成",
+                scrollBehavior = scrollBehavior,
             )
         },
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         contentWindowInsets = ScreenContentInsets,
         containerColor = MaterialTheme.colorScheme.surface,
     ) { padding ->
@@ -191,7 +198,11 @@ private fun WorkflowStep(index: Int, title: String, description: String) {
 }
 
 /**
- * 首页顶部主视觉：容器色渐变 + 星点与星轨弧线装饰。
+ * 首页顶部主视觉：容器色渐变 + 同心星轨。
+ *
+ * 弧线的圆心落在卡片右上角外侧，几条不同半径的圆弧向卡片内部扫过，
+ * 每条弧按分段插值绘制透明度，形成"从高亮星点拖出淡尾"的轨迹；
+ * 装饰全部集中在右侧与上半部，左侧留给主副标题。
  * 只使用 colorScheme 的容器角色，动态配色下同样协调。
  */
 @Composable
@@ -201,13 +212,14 @@ private fun HeroPanel() {
     Box(
         modifier = Modifier
             .fillMaxWidth()
+            .heightIn(min = 216.dp)
             .clip(MaterialTheme.shapes.large)
             .background(
                 Brush.linearGradient(
                     colors = listOf(scheme.primaryContainer, scheme.secondaryContainer),
                 ),
             )
-            .drawBehind { drawStarTrail(color = onContainer) },
+            .drawBehind { drawConcentricTrails(color = onContainer) },
     ) {
         Column(
             modifier = Modifier.padding(Spacing.xl),
@@ -236,52 +248,113 @@ private fun HeroPanel() {
                 text = "选择固定机位连续拍摄的照片合成星轨",
                 style = MaterialTheme.typography.bodyMedium,
                 color = onContainer.copy(alpha = 0.78f),
+                modifier = Modifier.widthIn(max = 260.dp),
             )
         }
     }
 }
 
-/** 低透明度星点与弧线，营造夜空氛围但不干扰文字阅读。 */
-private fun DrawScope.drawStarTrail(color: Color) {
-    val arcStroke = Stroke(width = 1.5.dp.toPx(), cap = StrokeCap.Round)
-    val arcColor = color.copy(alpha = 0.14f)
-    drawArc(
-        color = arcColor,
-        startAngle = 200f,
-        sweepAngle = 62f,
-        useCenter = false,
-        topLeft = Offset(size.width * 0.45f, -size.height * 0.45f),
-        size = Size(size.width * 0.85f, size.height * 1.25f),
-        style = arcStroke,
-    )
-    drawArc(
-        color = arcColor.copy(alpha = 0.7f),
-        startAngle = 208f,
-        sweepAngle = 52f,
-        useCenter = false,
-        topLeft = Offset(size.width * 0.55f, -size.height * 0.3f),
-        size = Size(size.width * 0.7f, size.height * 1.05f),
-        style = arcStroke,
-    )
+/** 一条同心星轨：半径以卡片高度为基准，避免不同宽度下比例失真。 */
+private data class TrailArc(
+    val radiusFactor: Float,
+    val startAngle: Float,
+    val sweepAngle: Float,
+    val headAlpha: Float,
+)
 
-    val starColor = color.copy(alpha = 0.55f)
+private val TRAIL_ARCS = listOf(
+    TrailArc(radiusFactor = 0.30f, startAngle = 96f, sweepAngle = 78f, headAlpha = 0.42f),
+    TrailArc(radiusFactor = 0.50f, startAngle = 92f, sweepAngle = 82f, headAlpha = 0.30f),
+    TrailArc(radiusFactor = 0.74f, startAngle = 88f, sweepAngle = 86f, headAlpha = 0.20f),
+    TrailArc(radiusFactor = 1.02f, startAngle = 84f, sweepAngle = 90f, headAlpha = 0.12f),
+)
+
+/** 右上角外的同心弧 + 拖尾星点，营造夜空氛围但不干扰文字阅读。 */
+private fun DrawScope.drawConcentricTrails(color: Color) {
+    val center = Offset(size.width * 0.92f, -size.height * 0.10f)
+    val stroke = Stroke(width = 1.6.dp.toPx(), cap = StrokeCap.Round)
+
+    TRAIL_ARCS.forEach { arc ->
+        val radius = size.height * arc.radiusFactor
+        drawTrailArc(
+            color = color,
+            center = center,
+            radius = radius,
+            startAngle = arc.startAngle,
+            sweepAngle = arc.sweepAngle,
+            stroke = stroke,
+            headAlpha = arc.headAlpha,
+        )
+        // 亮端星点：与弧线头部同角度，形成"星光拖出光轨"的因果感。
+        val head = pointOnCircle(center, radius, arc.startAngle)
+        drawStar(center = head, color = color, alpha = arc.headAlpha + 0.35f, radiusDp = 2.4f)
+    }
+
+    // 散落的小星点，只出现在右侧与上半部，避开标题区。
+    val dotColor = color.copy(alpha = 0.5f)
     listOf(
-        0.06f to 0.16f,
-        0.14f to 0.78f,
-        0.30f to 0.10f,
-        0.42f to 0.88f,
-        0.58f to 0.20f,
-        0.70f to 0.72f,
-        0.84f to 0.12f,
-        0.92f to 0.46f,
-        0.52f to 0.52f,
+        0.62f to 0.12f,
+        0.74f to 0.32f,
+        0.86f to 0.66f,
+        0.68f to 0.54f,
+        0.94f to 0.28f,
+        0.80f to 0.88f,
     ).forEachIndexed { index, (x, y) ->
         drawCircle(
-            color = starColor,
-            radius = if (index % 3 == 0) 2.dp.toPx() else 1.2.dp.toPx(),
+            color = dotColor.copy(alpha = 0.5f - index * 0.04f),
+            radius = if (index % 2 == 0) 1.8.dp.toPx() else 1.1.dp.toPx(),
             center = Offset(size.width * x, size.height * y),
         )
     }
+}
+
+/**
+ * 用分段圆弧模拟渐变描边：透明度从头部向尾部按平方衰减，
+ * 比 sweepGradient 更可控——每段弧都能精确落在卡片内部。
+ */
+private fun DrawScope.drawTrailArc(
+    color: Color,
+    center: Offset,
+    radius: Float,
+    startAngle: Float,
+    sweepAngle: Float,
+    stroke: Stroke,
+    headAlpha: Float,
+) {
+    val topLeft = Offset(center.x - radius, center.y - radius)
+    val arcSize = Size(radius * 2f, radius * 2f)
+    val segments = 26
+    val step = sweepAngle / segments
+    for (index in 0 until segments) {
+        val progress = (index + 1f) / segments
+        val alpha = headAlpha * (1f - progress) * (1f - progress)
+        if (alpha <= 0.01f) continue
+        drawArc(
+            color = color.copy(alpha = alpha),
+            startAngle = startAngle + step * index,
+            // 每段多画半度，避免四舍五入后出现断点。
+            sweepAngle = step + 0.6f,
+            useCenter = false,
+            topLeft = topLeft,
+            size = arcSize,
+            style = stroke,
+        )
+    }
+}
+
+/** 带柔光的小星点：外圈低透明度光环 + 实心核心。 */
+private fun DrawScope.drawStar(center: Offset, color: Color, alpha: Float, radiusDp: Float) {
+    val radius = radiusDp.dp.toPx()
+    drawCircle(color = color.copy(alpha = alpha * 0.22f), radius = radius * 2.6f, center = center)
+    drawCircle(color = color.copy(alpha = alpha.coerceAtMost(1f)), radius = radius, center = center)
+}
+
+private fun pointOnCircle(center: Offset, radius: Float, angleDegrees: Float): Offset {
+    val radians = Math.toRadians(angleDegrees.toDouble())
+    return Offset(
+        x = center.x + (radius * kotlin.math.cos(radians)).toFloat(),
+        y = center.y + (radius * kotlin.math.sin(radians)).toFloat(),
+    )
 }
 
 @Composable

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -23,6 +24,7 @@ import com.startrails.core.designsystem.theme.Spacing
 /**
  * 底部操作栏。使用 tonal 表面与页面区分，内容区不做系统栏内边距——
  * 导航外壳已经为系统手势条预留了空间，重复处理会导致双倍留白。
+ * 顶部发丝分割线在滚动内容滑过时划出清晰但不抢眼的边界。
  */
 @Composable
 fun BottomActionBar(
@@ -33,13 +35,18 @@ fun BottomActionBar(
         modifier = modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = Spacing.lg, vertical = Spacing.md),
-            verticalArrangement = Arrangement.spacedBy(Spacing.sm),
-            content = content,
-        )
+        Column(modifier = Modifier.fillMaxWidth()) {
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+            )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = Spacing.lg, vertical = Spacing.md),
+                verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+                content = content,
+            )
+        }
     }
 }
 

@@ -23,6 +23,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -30,10 +31,12 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -48,6 +51,7 @@ import com.startrails.core.designsystem.theme.Spacing
 import com.startrails.core.model.InputFrame
 import com.startrails.core.model.userMessage
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ReviewScreen(
     state: StackerUiState,
@@ -59,6 +63,7 @@ internal fun ReviewScreen(
 ) {
     val hasIssue = state.frames.any { it.issueCode != null || it.width == 0 }
     val validFrames = state.frames.size >= 2 && !hasIssue
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
     Scaffold(
         topBar = {
@@ -66,6 +71,19 @@ internal fun ReviewScreen(
                 title = "已选择 ${state.frames.size} 张",
                 subtitle = "检查尺寸与顺序后继续",
                 onBack = onBack,
+                scrollBehavior = scrollBehavior,
+                actions = {
+                    // 清空是低频的破坏性操作，放在顶栏与主流程按钮拉开距离，避免误触。
+                    TextButton(
+                        onClick = onClear,
+                        enabled = state.frames.isNotEmpty(),
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error,
+                        ),
+                    ) {
+                        Text("清空")
+                    }
+                },
             )
         },
         bottomBar = {
@@ -82,15 +100,6 @@ internal fun ReviewScreen(
                     horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    TextButton(
-                        onClick = onClear,
-                        colors = ButtonDefaults.textButtonColors(
-                            contentColor = MaterialTheme.colorScheme.error,
-                        ),
-                        modifier = Modifier.heightIn(min = Layout.actionButtonHeight),
-                    ) {
-                        Text("清空")
-                    }
                     OutlinedButton(
                         onClick = onAddMore,
                         modifier = Modifier
@@ -111,6 +120,7 @@ internal fun ReviewScreen(
                 }
             }
         },
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         contentWindowInsets = ScreenContentInsets,
         containerColor = MaterialTheme.colorScheme.surface,
     ) { padding ->

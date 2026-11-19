@@ -42,8 +42,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -52,9 +54,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
@@ -104,14 +106,18 @@ fun GalleryRoute(onOpenStacker: () -> Unit, onOpenJob: (String) -> Unit = { onOp
         viewModel.consumeMessage()
     }
 
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+
     Scaffold(
         topBar = {
             StarTrailsTopBar(
                 title = "作品",
-                subtitle = if (state.items.isEmpty()) "合成结果会保存在这里" else "共 ${state.items.size} 个作品",
+                subtitle = if (state.items.isEmpty()) null else "共 ${state.items.size} 个作品",
+                scrollBehavior = scrollBehavior,
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         contentWindowInsets = ScreenContentInsets,
         containerColor = MaterialTheme.colorScheme.surface,
     ) { padding ->
@@ -203,13 +209,22 @@ private fun GalleryCard(
     var menuOpen by remember { mutableStateOf(false) }
     // previewFile 已在 ViewModel 中确认存在，缺失时回退到相册 URI。
     val model: Any? = item.previewFile ?: item.job.outputUri?.let { Uri.parse(it) }
+    val hasPreview = item.available && model != null
+    val badgeText = buildString {
+        append(item.job.outputFormat.name)
+        if (item.job.frameCount > 0) append(" · ${item.job.frameCount} 帧")
+    }
 
     Card(
         onClick = { if (item.available) onOpen() },
         modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            containerColor = if (hasPreview) {
+                MaterialTheme.colorScheme.surfaceContainerLow
+            } else {
+                MaterialTheme.colorScheme.surfaceContainerHigh
+            },
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         border = BorderStroke(
@@ -222,7 +237,7 @@ private fun GalleryCard(
                 .fillMaxWidth()
                 .aspectRatio(1f),
         ) {
-            if (item.available && model != null) {
+            if (hasPreview) {
                 AsyncImage(
                     model = model,
                     contentDescription = "${item.modeText} 星轨作品",
@@ -230,73 +245,96 @@ private fun GalleryCard(
                     modifier = Modifier.fillMaxSize(),
                 )
             } else {
-                Box(
+                Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.surfaceContainerHighest),
-                    contentAlignment = Alignment.Center,
+                        .padding(Spacing.md),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(Spacing.xs, Alignment.CenterVertically),
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(Spacing.xs),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.BrokenImage,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Text(
-                            text = "文件不可用",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Filled.BrokenImage,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                        modifier = Modifier.size(32.dp),
+                    )
+                    Text(
+                        text = "文件不可用",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = item.dateText,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    )
                 }
             }
 
-            // 底部渐变压暗，保证日期文字在任何照片上都可读
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            0.45f to Color.Transparent,
-                            1f to MaterialTheme.colorScheme.scrim.copy(alpha = 0.78f),
+            if (hasPreview) {
+                // 底部渐变压暗，保证日期文字在任何照片上都可读；缺失文件时不叠加，
+                // 否则占位底色会被压成脏灰。
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                0.45f to Color.Transparent,
+                                1f to MaterialTheme.colorScheme.scrim.copy(alpha = 0.78f),
+                            ),
                         ),
-                    ),
-            )
+                )
 
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(horizontal = Spacing.md, vertical = Spacing.sm),
-                verticalArrangement = Arrangement.spacedBy(1.dp),
-            ) {
-                Text(
-                    text = item.dateText,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = PhotoOverlayContent,
-                )
-                Text(
-                    text = "${item.modeText} · ${item.sizeText}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = PhotoOverlayContent.copy(alpha = 0.82f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(horizontal = Spacing.md, vertical = Spacing.sm),
+                    verticalArrangement = Arrangement.spacedBy(1.dp),
+                ) {
+                    Text(
+                        text = item.dateText,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = PhotoOverlayContent,
+                    )
+                    Text(
+                        text = "${item.modeText} · ${item.sizeText}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = PhotoOverlayContent.copy(alpha = 0.82f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+
+                // 左上角摄影元数据胶囊：格式 + 帧数，强化作品集的专业质感。
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(Spacing.sm),
+                    shape = CircleShape,
+                    color = Color.Black.copy(alpha = 0.45f),
+                    contentColor = PhotoOverlayContent,
+                ) {
+                    Text(
+                        text = badgeText,
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.padding(horizontal = Spacing.sm, vertical = 3.dp),
+                        maxLines = 1,
+                    )
+                }
             }
 
             Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(Spacing.xs)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f)),
+                    .padding(Spacing.xs),
             ) {
                 IconButton(
                     onClick = { menuOpen = true },
-                    colors = IconButtonDefaults.iconButtonColors(contentColor = PhotoOverlayContent),
-                    modifier = Modifier.size(40.dp),
+                    // 不覆盖 size：IconButton 自带 48dp 最小触控热区，视觉仍是 40dp 状态层。
+                    colors = IconButtonDefaults.iconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f),
+                        contentColor = PhotoOverlayContent,
+                    ),
                 ) {
                     Icon(
                         imageVector = Icons.Filled.MoreVert,
