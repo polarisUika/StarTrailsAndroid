@@ -1,0 +1,24 @@
+*.iml
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+/build
+*/build
+*/*/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# Kotlin 增量编译缓存
+.kotlin/
+
+# 本机运行时验收产物（截图、UI dump、测试用帧），不入库
+/artifacts/
+
+# 发布签名：密钥与密码只保留在本机，禁止提交
+keystore.properties
+/keystore/
+*.jks
+*.keystore

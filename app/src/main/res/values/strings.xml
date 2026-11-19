@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">StarTrails 星轨</string>
+    <string name="stack_notification_channel">叠加任务</string>
+</resources>
